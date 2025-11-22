@@ -7,18 +7,18 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import Calendar from '@/components/Calendar';
 import { Trophy, Target, Flame, Clock, TrendingUp } from 'lucide-react';
-import { Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-} from 'chart.js';
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+// Chart imports temporarily commented to fix build
+// import { Bar } from 'react-chartjs-2';
+// import {
+//   Chart as ChartJS,
+//   CategoryScale,
+//   LinearScale,
+//   BarElement,
+//   Title,
+//   Tooltip,
+//   Legend
+// } from 'chart.js';
+// ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -103,41 +103,6 @@ export default function Dashboard() {
 
     fetchDashboardData();
   }, [user]);
-
-  const chartData = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    datasets: [
-      {
-        label: 'Sessions This Week',
-        data: weeklySessionsData,
-        backgroundColor: 'hsl(200 98% 39% / 0.8)',
-        borderColor: 'hsl(200 98% 39%)',
-        borderWidth: 2,
-        borderRadius: 8,
-      }
-    ]
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      title: {
-        display: false,
-      }
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: {
-          stepSize: 1
-        }
-      }
-    }
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -252,8 +217,21 @@ export default function Dashboard() {
         {/* Weekly Trends Chart */}
         <Card className="p-6 mb-8">
           <h3 className="text-lg font-semibold mb-4">Weekly Trends</h3>
-          <div className="h-64">
-            <Bar data={chartData} options={chartOptions} />
+          <div className="space-y-2">
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => (
+              <div key={day} className="flex items-center gap-4">
+                <span className="text-sm font-medium w-12">{day}</span>
+                <div className="flex-1 bg-muted rounded-full h-8 relative overflow-hidden">
+                  <div 
+                    className="bg-gradient-primary h-full rounded-full transition-all"
+                    style={{ width: `${weeklySessionsData[index] * 20}%` }}
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center text-sm font-medium">
+                    {weeklySessionsData[index]} sessions
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
 
