@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Play, Pause, RotateCcw, AlertTriangle } from 'lucide-react';
+import { Play, Pause, RotateCcw, AlertTriangle, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { App as CapacitorApp } from '@capacitor/app';
+import { KeepAwake } from '@capacitor-community/keep-awake';
 
 export default function FocusSession() {
   const { user } = useAuth();
@@ -21,9 +22,31 @@ export default function FocusSession() {
   const [isRunning, setIsRunning] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [distractionsCount, setDistractionsCount] = useState(0);
+  const [focusModeEnabled, setFocusModeEnabled] = useState(false);
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const visibilityRef = useRef(true);
+
+  // Keep screen awake during session
+  useEffect(() => {
+    const manageWakeLock = async () => {
+      try {
+        if (isRunning) {
+          await KeepAwake.keepAwake();
+        } else {
+          await KeepAwake.allowSleep();
+        }
+      } catch (error) {
+        console.log('Wake lock not supported in this environment');
+      }
+    };
+
+    manageWakeLock();
+
+    return () => {
+      KeepAwake.allowSleep().catch(() => {});
+    };
+  }, [isRunning]);
 
   // Distraction detection (Browser + Native Mobile)
   useEffect(() => {
@@ -159,9 +182,10 @@ export default function FocusSession() {
 
     setSessionId(data.id);
     setIsRunning(true);
+    setFocusModeEnabled(true);
     toast({
       title: "Session started!",
-      description: "Stay focused and minimize distractions",
+      description: "Focus mode enabled. Screen will stay awake.",
     });
   };
 
@@ -178,6 +202,7 @@ export default function FocusSession() {
     setTimeLeft(duration * 60);
     setDistractionsCount(0);
     setGoal('');
+    setFocusModeEnabled(false);
     
     if (sessionId) {
       await supabase.from('focus_sessions').delete().eq('id', sessionId);
@@ -239,6 +264,7 @@ export default function FocusSession() {
     }
 
     setIsRunning(false);
+    setFocusModeEnabled(false);
     toast({
       title: "Session completed!",
       description: `Great job! You earned ${xpEarned} XP. ${distractionsCount === 0 ? 'Perfect focus!' : `${distractionsCount} distractions detected.`}`,
@@ -256,8 +282,18 @@ export default function FocusSession() {
   const progress = ((duration * 60 - timeLeft) / (duration * 60)) * 100;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
+    <div className="min-h-screen bg-background relative">
+      {/* Focus Mode Overlay */}
+      {focusModeEnabled && isRunning && (
+        <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+          <div className="absolute top-8 left-1/2 -translate-x-1/2 flex items-center gap-2 text-primary animate-pulse">
+            <Lock className="h-5 w-5" />
+            <span className="text-sm font-medium">Focus Mode Active</span>
+          </div>
+        </div>
+      )}
+
+      <div className="container mx-auto px-4 py-8 max-w-2xl relative z-10">
         <h1 className="text-3xl font-bold mb-8 text-center">Focus Session</h1>
 
         <Card className="p-8">
