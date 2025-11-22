@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Play, Pause, RotateCcw, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { App as CapacitorApp } from '@capacitor/app';
 
 export default function FocusSession() {
   const { user } = useAuth();
@@ -24,10 +25,11 @@ export default function FocusSession() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const visibilityRef = useRef(true);
 
-  // Distraction detection
+  // Distraction detection (Browser + Native Mobile)
   useEffect(() => {
     if (!isRunning || !user) return;
 
+    // Browser detection
     const handleVisibilityChange = async () => {
       if (document.hidden && visibilityRef.current) {
         visibilityRef.current = false;
@@ -48,6 +50,25 @@ export default function FocusSession() {
       visibilityRef.current = true;
     };
 
+    // Native mobile app detection (Capacitor)
+    let appStateListener: any;
+    const setupCapacitorListener = async () => {
+      try {
+        appStateListener = await CapacitorApp.addListener('appStateChange', async (state) => {
+          if (!state.isActive && visibilityRef.current) {
+            visibilityRef.current = false;
+            await logDistraction('app_background');
+          } else if (state.isActive) {
+            visibilityRef.current = true;
+          }
+        });
+      } catch (error) {
+        // Capacitor not available (web browser), continue with browser-only detection
+        console.log('Running in browser mode');
+      }
+    };
+
+    setupCapacitorListener();
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', handleBlur);
     window.addEventListener('focus', handleFocus);
@@ -56,6 +77,9 @@ export default function FocusSession() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleBlur);
       window.removeEventListener('focus', handleFocus);
+      if (appStateListener) {
+        appStateListener.remove();
+      }
     };
   }, [isRunning, user]);
 
